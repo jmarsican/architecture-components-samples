@@ -18,6 +18,7 @@ package com.android.example.github.di
 
 import android.app.Application
 import androidx.room.Room
+import com.android.example.github.BuildConfig.BASE_URL
 import com.android.example.github.api.GithubService
 import com.android.example.github.db.GithubDb
 import com.android.example.github.db.RepoDao
@@ -25,6 +26,8 @@ import com.android.example.github.db.UserDao
 import com.android.example.github.util.LiveDataCallAdapterFactory
 import dagger.Module
 import dagger.Provides
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Singleton
@@ -34,12 +37,18 @@ class AppModule {
     @Singleton
     @Provides
     fun provideGithubService(): GithubService {
+        val logging = HttpLoggingInterceptor()
+        logging.setLevel(HttpLoggingInterceptor.Level.BASIC)
+        val client = OkHttpClient.Builder()
+                .addInterceptor(logging)
+                .build()
         return Retrofit.Builder()
-            .baseUrl("https://api.github.com/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .addCallAdapterFactory(LiveDataCallAdapterFactory())
-            .build()
-            .create(GithubService::class.java)
+                .baseUrl(BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .addCallAdapterFactory(LiveDataCallAdapterFactory())
+                .client(client)
+                .build()
+                .create(GithubService::class.java)
     }
 
     @Singleton
