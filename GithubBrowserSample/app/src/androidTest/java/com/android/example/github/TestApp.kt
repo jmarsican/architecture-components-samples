@@ -16,11 +16,30 @@
 
 package com.android.example.github
 
+import android.app.Activity
 import android.app.Application
+import com.android.example.github.di.TestInjector
+import dagger.android.DispatchingAndroidInjector
+import dagger.android.HasActivityInjector
+import timber.log.Timber
+import javax.inject.Inject
 
 /**
- * We use a separate App for tests to prevent initializing dependency injection.
+ *
  *
  * See [com.android.example.github.util.GithubTestRunner].
  */
-class TestApp : Application()
+class TestApp : Application(), HasActivityInjector {
+    @Inject
+    lateinit var dispatchingAndroidInjector: DispatchingAndroidInjector<Activity>
+
+    override fun onCreate() {
+        super.onCreate()
+        if (BuildConfig.DEBUG) {
+            Timber.plant(Timber.DebugTree())
+        }
+        TestInjector.init(this)
+    }
+
+    override fun activityInjector() = dispatchingAndroidInjector
+}

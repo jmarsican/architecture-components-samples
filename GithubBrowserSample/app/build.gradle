@@ -120,6 +120,9 @@ dependencies {
     androidTestImplementation deps.arch_core.testing
     androidTestImplementation deps.mockito.core
     androidTestImplementation deps.mockito.android
+    androidTestImplementation deps.mock_web_server
+    kaptAndroidTest deps.dagger.android_support_compiler
+    kaptAndroidTest deps.dagger.compiler
 }
 
 task fullCoverageReport(type: JacocoReport) {
