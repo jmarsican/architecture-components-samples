@@ -30,6 +30,7 @@ import androidx.test.espresso.matcher.ViewMatchers.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.example.github.MainActivity
 import com.android.example.github.R
+import com.android.example.github.api.MockServer
 import com.android.example.github.binding.FragmentBindingAdapters
 import com.android.example.github.util.*
 import com.android.example.github.vo.Repo
@@ -90,9 +91,10 @@ class SearchFragmentTest {
     @Test
     fun search() {
         ActivityScenario.launch(MainActivity::class.java)
+        MockServer.enqueueJsonResponse("search")
 
-
-        onView(withId(R.id.progress_bar)).check(matches(not(isDisplayed())))
+        onView(withId(R.id.progress_bar))
+                .check(matches(not(isDisplayed())))
         onView(withId(R.id.input)).perform(
             typeText("foo"),
             pressKey(KeyEvent.KEYCODE_ENTER)

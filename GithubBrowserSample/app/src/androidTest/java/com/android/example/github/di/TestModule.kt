@@ -37,7 +37,7 @@ class TestModule {
     @Provides
     fun provideGithubService(): GithubService {
         return Retrofit.Builder()
-            .baseUrl("https://api.github.com/")
+            .baseUrl(MockServer.baseUrl())
             .addConverterFactory(GsonConverterFactory.create())
             .addCallAdapterFactory(LiveDataCallAdapterFactory())
             .build()
