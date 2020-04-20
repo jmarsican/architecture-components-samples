@@ -18,9 +18,9 @@ package com.android.example.github.ui.search
 
 import android.view.KeyEvent
 import androidx.lifecycle.MutableLiveData
-import androidx.navigation.NavController
 import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.Espresso.onData
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.*
 import androidx.test.espresso.assertion.ViewAssertions.matches
@@ -31,11 +31,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.example.github.MainActivity
 import com.android.example.github.R
 import com.android.example.github.api.MockServer
-import com.android.example.github.binding.FragmentBindingAdapters
+import com.android.example.github.api.RepoSearchResponse
 import com.android.example.github.util.*
 import com.android.example.github.vo.Repo
 import com.android.example.github.vo.Resource
-import org.hamcrest.CoreMatchers.not
+import com.google.gson.Gson
+import org.hamcrest.CoreMatchers.*
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -62,7 +63,7 @@ class SearchFragmentTest {
 
     @Before
     fun init() {
-
+// TODO CLEAR APP DATA
 //        viewModel = mock(SearchViewModel::class.java)
 //        doReturn(loadMoreStatus).`when`(viewModel).loadMoreStatus
 //        `when`(viewModel.results).thenReturn(results)
@@ -92,14 +93,27 @@ class SearchFragmentTest {
     fun search() {
         ActivityScenario.launch(MainActivity::class.java)
         MockServer.enqueueJsonResponse("search")
+        val repo = Gson().fromJson(
+                MockServer.readTextFile(MockServer.openJsonFile("search")),
+                RepoSearchResponse::class.java).items[1]
 
         onView(withId(R.id.progress_bar))
                 .check(matches(not(isDisplayed())))
-        onView(withId(R.id.input)).perform(
-            typeText("foo"),
-            pressKey(KeyEvent.KEYCODE_ENTER)
-        )
-        onView(withId(R.id.repo_list)).check(matches(isDisplayed()))
+
+        onView(withId(R.id.input))
+                .perform(
+                        typeText("foo"),
+                        pressKey(KeyEvent.KEYCODE_ENTER)
+                )
+
+        onView(withId(R.id.repo_list))
+                .check(matches(isDisplayed()))
+        Thread.sleep(8000)
+
+        onView(listMatcher().atPosition(1)).perform(click())
+
+        onView(withId(R.id.name))
+                .check(matches(withText(repo.name)))
     }
 
     @Test
