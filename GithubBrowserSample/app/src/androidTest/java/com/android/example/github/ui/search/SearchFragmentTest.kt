@@ -20,7 +20,6 @@ import android.view.KeyEvent
 import androidx.lifecycle.MutableLiveData
 import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ActivityScenario
-import androidx.test.espresso.Espresso.onData
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.*
 import androidx.test.espresso.assertion.ViewAssertions.matches
@@ -93,12 +92,11 @@ class SearchFragmentTest {
     fun search() {
         ActivityScenario.launch(MainActivity::class.java)
         MockServer.enqueueJsonResponse("search")
-        val repo = Gson().fromJson(
+        val repoPosition = 1
+        val repositories = Gson().fromJson(
                 MockServer.readTextFile(MockServer.openJsonFile("search")),
-                RepoSearchResponse::class.java).items[1]
-
-        onView(withId(R.id.progress_bar))
-                .check(matches(not(isDisplayed())))
+                RepoSearchResponse::class.java)
+        val repo = repositories.items[repoPosition]
 
         onView(withId(R.id.input))
                 .perform(
@@ -108,12 +106,12 @@ class SearchFragmentTest {
 
         onView(withId(R.id.repo_list))
                 .check(matches(isDisplayed()))
-        Thread.sleep(8000)
 
-        onView(listMatcher().atPosition(1)).perform(click())
+        onView(RecyclerViewMatcher(R.id.repo_list).atPosition(repoPosition))
+                .perform(click())
 
         onView(withId(R.id.name))
-                .check(matches(withText(repo.name)))
+                .check(matches(withText(repo.fullName)))
     }
 
     @Test
