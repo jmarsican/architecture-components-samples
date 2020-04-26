@@ -2,16 +2,32 @@ package com.android.example.github.api
 
 import com.google.gson.Gson
 import okhttp3.HttpUrl
+import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.RecordedRequest
 import okio.Okio
 import java.io.ByteArrayOutputStream
 import java.io.IOException
-import java.io.InputStream
 
 object MockServer {
     private val server = MockWebServer()
+
     fun baseUrl(): HttpUrl = server.url("/")
+
+    fun init() {
+        server.start()
+    }
+
+    fun reset() {
+        server.shutdown()
+    }
+
+    fun enqueueErrorResponse() {
+        server.enqueue(
+                MockResponse().setResponseCode(403)
+        )
+    }
 
     fun enqueueJsonResponse(fileName: String, headers: Map<String, String> = emptyMap()) {
         val inputStream = openJsonFile(fileName)
@@ -27,18 +43,31 @@ object MockServer {
         )
     }
 
-    fun enqueueErrorResponse() {
-        server.enqueue(
-                MockResponse().setResponseCode(403)
-        )
+    fun enqueueConditionalResponses(responses: ConditionalResponseComposite) {
+
+        val dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                val path = request.requestUrl.encodedPath()
+                return responses.buildResponse(path) ?:
+                throw IllegalArgumentException("Unexpected request: $request")
+            }
+        }
+        server.setDispatcher(dispatcher)
     }
 
-    fun init() {
-        server.start()
-    }
+    class ConditionalResponseComposite(private val path: String, fileName: String,
+                                       private val next: ConditionalResponseComposite? = null) {
+        private val inputStreamFirst = openJsonFile(fileName)
+        private val fileFirst = Okio.buffer(Okio.source(inputStreamFirst))
 
-    fun reset() {
-        server.shutdown()
+        fun buildResponse(path: String): MockResponse? {
+            return if (path == this.path) {
+                MockResponse()
+                        .setBody(fileFirst.readString(Charsets.UTF_8))
+            } else {
+                next?.buildResponse(path)
+            }
+        }
     }
 
     fun readTextFile(fileName: String): String? {
@@ -59,7 +88,7 @@ object MockServer {
 
     inline fun <reified T> getObjectFromJsonFile(fileName: String, javaClass: Class<T>): T? {
         return Gson().fromJson(
-                MockServer.readTextFile(fileName),
+                readTextFile(fileName),
                 javaClass
         )
     }

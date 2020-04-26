@@ -18,7 +18,6 @@ package com.android.example.github.ui.search
 
 import android.view.KeyEvent
 import android.view.View
-import androidx.lifecycle.MutableLiveData
 import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
@@ -34,12 +33,8 @@ import com.android.example.github.R
 import com.android.example.github.api.MockServer
 import com.android.example.github.api.RepoSearchResponse
 import com.android.example.github.di.OkHttpProvider
-import com.android.example.github.util.CountingAppExecutorsRule
 import com.android.example.github.util.RecyclerViewMatcher
 import com.android.example.github.util.TaskExecutorWithIdlingResourceRule
-import com.android.example.github.util.TestUtil
-import com.android.example.github.vo.Repo
-import com.android.example.github.vo.Resource
 import com.android.example.github.vo.User
 import com.google.android.material.textfield.TextInputLayout
 import com.jakewharton.espresso.OkHttp3IdlingResource
@@ -49,7 +44,6 @@ import org.hamcrest.Matcher
 import org.hamcrest.TypeSafeMatcher
 import org.junit.*
 import org.junit.runner.RunWith
-import org.mockito.Mockito.verify
 
 
 @RunWith(AndroidJUnit4::class)
@@ -58,41 +52,12 @@ class SearchFragmentTest {
     @Rule
     @JvmField
     val executorRule = TaskExecutorWithIdlingResourceRule()
-    @Rule
-    @JvmField
-    val countingAppExecutors = CountingAppExecutorsRule()
 
-    private lateinit var viewModel: SearchViewModel
-    private val results = MutableLiveData<Resource<List<Repo>>>()
-
-    private val resource : IdlingResource = OkHttp3IdlingResource.create("okhttp", OkHttpProvider.instance)
-
+    private val resource : IdlingResource =
+            OkHttp3IdlingResource.create("okhttp", OkHttpProvider.instance)
 
     @Before
     fun init() {
-//        viewModel = mock(SearchViewModel::class.java)
-//        doReturn(loadMoreStatus).`when`(viewModel).loadMoreStatus
-//        `when`(viewModel.results).thenReturn(results)
-//
-//        mockBindingAdapter = mock(FragmentBindingAdapters::class.java)
-//
-//        val scenario = launchFragmentInContainer(
-//                themeResId = R.style.AppTheme) {
-//            SearchFragment().apply {
-//                appExecutors = countingAppExecutors.appExecutors
-//                viewModelFactory = ViewModelUtil.createFor(viewModel)
-//                dataBindingComponent = object : DataBindingComponent {
-//                    override fun getFragmentBindingAdapters(): FragmentBindingAdapters {
-//                        return mockBindingAdapter
-//                    }
-//                }
-//            }
-//        }
-//        dataBindingIdlingResourceRule.monitorFragment(scenario)
-//        scenario.onFragment { fragment ->
-//            Navigation.setViewNavController(fragment.requireView(), navController)
-//            fragment.disableProgressBarAnimations()
-//        }
         MockServer.init()
         IdlingRegistry.getInstance().register(resource)
         ActivityScenario.launch(MainActivity::class.java)
@@ -116,7 +81,7 @@ class SearchFragmentTest {
         //GIVEN
         MockServer.enqueueJsonResponse("search")
 
-        val repoPosition = 1
+        val repoPosition = 14
         val repositories = getRepoSearchResponseDTO()
         val repo = repositories!!.items[repoPosition]
 
@@ -130,6 +95,9 @@ class SearchFragmentTest {
         onView(withId(R.id.repo_list))
                 .check(matches(isDisplayed()))
 
+        val action = RecyclerViewActions.scrollToPosition<RecyclerView.ViewHolder>(repoPosition)
+        onView(withId(R.id.repo_list))
+                .perform(action)
         onView(RecyclerViewMatcher(R.id.repo_list).atPosition(repoPosition))
                 .perform(click())
 
@@ -141,41 +109,7 @@ class SearchFragmentTest {
     }
 
     @Test
-    fun clickInContributor_ShowsAllHisRepos() {
-        //GIVEN
-        MockServer.enqueueJsonResponse("search")
-        MockServer.enqueueJsonResponse("contributors")
-        MockServer.enqueueJsonResponse("repos-yigit")
-        MockServer.enqueueJsonResponse("user-yigit")
-
-        val user = getUserResponseDTO()!!
-
-        //WHEN
-        onView(withId(R.id.input))
-                .perform(
-                        typeText("foo"),
-                        pressKey(KeyEvent.KEYCODE_ENTER)
-                )
-
-        onView(withId(R.id.repo_list))
-                .check(matches(isDisplayed()))
-
-        onView(RecyclerViewMatcher(R.id.repo_list).atPosition(0))
-                .perform(click())
-
-        onView(RecyclerViewMatcher(R.id.contributor_list).atPosition(0))
-                .perform(click())
-
-        //THEN
-        onView(withContentDescription("user name"))
-                .check(matches(withText(user.name)))
-        onView(withId(R.id.progress_bar))
-                .check(matches(not(isDisplayed())))
-    }
-
-    @Test
     fun clickInSearchResults_ShowsErrorScreen() {
-        ActivityScenario.launch(MainActivity::class.java)
         MockServer.enqueueErrorResponse()
 
         onView(withId(R.id.input))
@@ -191,24 +125,49 @@ class SearchFragmentTest {
                 .check(matches(not(withText(""))))
     }
 
-    @Ignore
-    @Test
-    fun loadResults() {
-        val repo = TestUtil.createRepo("foo", "bar", "desc")
-        results.postValue(Resource.success(arrayListOf(repo)))
-        onView(listMatcher().atPosition(0)).check(matches(hasDescendant(withText("foo/bar"))))
-        onView(withId(R.id.progress_bar)).check(matches(not(isDisplayed())))
-    }
+   @Test
+    fun clickInContributor_ShowsAllHisRepos() {
+       //GIVEN
+       val user = getUserResponseDTO()!!
 
-    @Ignore
-    @Test
-    fun loadMore() {
-        val repos = TestUtil.createRepos(50, "foo", "barr", "desc")
-        results.postValue(Resource.success(repos))
-        val action = RecyclerViewActions.scrollToPosition<RecyclerView.ViewHolder>(49)
-        onView(withId(R.id.repo_list)).perform(action)
-        onView(listMatcher().atPosition(49)).check(matches(isDisplayed()))
-        verify(viewModel).loadNextPage()
+       val repoPosition = 1
+       val repositories = getRepoSearchResponseDTO()
+       val repo = repositories!!.items[repoPosition]
+
+       val responses = MockServer.ConditionalResponseComposite(
+               "/users/${repo.owner.login}/repos","repos-yigit",
+               MockServer.ConditionalResponseComposite(
+                       "/users/${repo.owner.login}", "user-yigit",
+                       MockServer.ConditionalResponseComposite(
+                               "/repos/${repo.owner.login}/${repo.name}/contributors", "contributors",
+                               MockServer.ConditionalResponseComposite("/search/repositories", "search")
+                       )
+               )
+       )
+       MockServer.enqueueConditionalResponses(responses)
+
+        //WHEN
+        onView(withId(R.id.input))
+                .perform(
+                        typeText("foo"),
+                        pressKey(KeyEvent.KEYCODE_ENTER)
+                )
+
+        onView(withId(R.id.repo_list))
+                .check(matches(isDisplayed()))
+
+        onView(RecyclerViewMatcher(R.id.repo_list).atPosition(repoPosition))
+                .perform(click())
+
+        onView(withId(R.id.contributor_list))
+                .check(matches(hasDescendant(withText(repo.owner.login))))
+        onView(RecyclerViewMatcher(R.id.contributor_list).atPosition(0))
+                .perform(click())
+
+        onView(withContentDescription("user name"))
+                .check(matches(withText(user.name)))
+        onView(withId(R.id.progress_bar))
+                .check(matches(not(isDisplayed())))
     }
 
     private fun getRepoSearchResponseDTO() = MockServer.getObjectFromJsonFile(
@@ -218,10 +177,6 @@ class SearchFragmentTest {
     private fun getUserResponseDTO() = MockServer.getObjectFromJsonFile(
                 "user-yigit",
                 User::class.java)
-
-    private fun listMatcher(): RecyclerViewMatcher {
-        return RecyclerViewMatcher(R.id.repo_list)
-    }
 
     private fun hasTextInputLayoutHintText(expected: String): Matcher<View> = object : TypeSafeMatcher<View>() {
 
