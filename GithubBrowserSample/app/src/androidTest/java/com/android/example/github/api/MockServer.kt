@@ -1,5 +1,6 @@
 package com.android.example.github.api
 
+import com.google.gson.Gson
 import okhttp3.HttpUrl
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -11,21 +12,6 @@ import java.io.InputStream
 object MockServer {
     private val server = MockWebServer()
     fun baseUrl(): HttpUrl = server.url("/")
-
-    fun readTextFile(inputStream: InputStream): String? {
-        val outputStream = ByteArrayOutputStream()
-        val buf = ByteArray(1024)
-        var len: Int
-        try {
-            while (inputStream.read(buf).also{ len = it } != -1) {
-                outputStream.write(buf, 0, len)
-            }
-            outputStream.close()
-            inputStream.close()
-        } catch (e: IOException) {
-        }
-        return outputStream.toString()
-    }
 
     fun enqueueJsonResponse(fileName: String, headers: Map<String, String> = emptyMap()) {
         val inputStream = openJsonFile(fileName)
@@ -41,12 +27,43 @@ object MockServer {
         )
     }
 
-    fun openJsonFile(fileName: String) = javaClass.classLoader!!
-            .getResourceAsStream("api-response/$fileName.json")
-
     fun enqueueErrorResponse() {
         server.enqueue(
                 MockResponse().setResponseCode(403)
         )
     }
+
+    fun init() {
+        server.start()
+    }
+
+    fun reset() {
+        server.shutdown()
+    }
+
+    fun readTextFile(fileName: String): String? {
+        val inputStream = openJsonFile(fileName)
+        val outputStream = ByteArrayOutputStream()
+        val buf = ByteArray(1024)
+        var len: Int
+        try {
+            while (inputStream.read(buf).also{ len = it } != -1) {
+                outputStream.write(buf, 0, len)
+            }
+            outputStream.close()
+            inputStream.close()
+        } catch (e: IOException) {
+        }
+        return outputStream.toString()
+    }
+
+    inline fun <reified T> getObjectFromJsonFile(fileName: String, javaClass: Class<T>): T? {
+        return Gson().fromJson(
+                MockServer.readTextFile(fileName),
+                javaClass
+        )
+    }
+
+    fun openJsonFile(fileName: String) = javaClass.classLoader!!
+            .getResourceAsStream("api-response/$fileName.json")
 }
