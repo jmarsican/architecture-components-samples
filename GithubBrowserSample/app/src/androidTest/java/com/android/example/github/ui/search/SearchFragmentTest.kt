@@ -95,11 +95,11 @@ class SearchFragmentTest {
         onView(withId(R.id.repo_list))
                 .check(matches(isDisplayed()))
 
-        val action = RecyclerViewActions.scrollToPosition<RecyclerView.ViewHolder>(repoPosition)
+        val scrollToListItem = RecyclerViewActions.scrollToPosition<RecyclerView.ViewHolder>(repoPosition)
+        val clickOnListItem = RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(repoPosition, click())
         onView(withId(R.id.repo_list))
-                .perform(action)
-        onView(RecyclerViewMatcher(R.id.repo_list).atPosition(repoPosition))
-                .perform(click())
+                .perform(scrollToListItem)
+                .perform(clickOnListItem)
 
         //THEN
         onView(withId(R.id.name))
@@ -153,17 +153,17 @@ class SearchFragmentTest {
                         pressKey(KeyEvent.KEYCODE_ENTER)
                 )
 
-        onView(withId(R.id.repo_list))
-                .check(matches(isDisplayed()))
-
         onView(RecyclerViewMatcher(R.id.repo_list).atPosition(repoPosition))
                 .perform(click())
 
-        onView(withId(R.id.contributor_list))
-                .check(matches(hasDescendant(withText(repo.owner.login))))
-        onView(RecyclerViewMatcher(R.id.contributor_list).atPosition(0))
-                .perform(click())
+       val clickOnListItem = RecyclerViewActions.actionOnItem<RecyclerView.ViewHolder>(
+               hasDescendant(withText(repo.owner.login)),
+               click()
+       )
+       onView(withId(R.id.contributor_list))
+                .perform(clickOnListItem)
 
+       //THEN
         onView(withContentDescription("user name"))
                 .check(matches(withText(user.name)))
         onView(withId(R.id.progress_bar))
