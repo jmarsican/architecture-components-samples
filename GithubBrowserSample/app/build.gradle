@@ -40,10 +40,20 @@ android {
     buildTypes {
         debug {
             testCoverageEnabled !project.hasProperty('android.injected.invoked.from.ide')
+            buildConfigField 'String', 'BASE_URL', '"https://api.github.com/"'
         }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            buildConfigField 'String', 'BASE_URL', '"https://api.github.com/"'
+        }
+        mock {
+            minifyEnabled false
+            shrinkResources false
+            debuggable true
+            signingConfig signingConfigs.debug
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            buildConfigField 'String', 'BASE_URL', "\"http://${getMockServerIp()}:1080\""
         }
     }
     dataBinding {
@@ -63,6 +73,22 @@ android {
     lintOptions {
         lintConfig rootProject.file('lint.xml')
     }
+}
+
+static def getMockServerIp() {
+    InetAddress serverAddress = null;
+    for (NetworkInterface netInterface : NetworkInterface.networkInterfaces) {
+        for (InetAddress address : netInterface.inetAddresses) {
+            if (!address.isLoopbackAddress()) {
+                if (address.isSiteLocalAddress()) {
+                    return address.getHostAddress();
+                } else if (serverAddress == null) {
+                    serverAddress = address;
+                }
+            }
+        }
+    }
+    return (serverAddress != null ? serverAddress : InetAddress.getLocalHost()).getHostAddress();
 }
 
 jacoco {
@@ -91,7 +117,7 @@ dependencies {
     implementation deps.dagger.android_support
     implementation deps.constraint_layout
     implementation deps.kotlin.stdlib
-
+    implementation("com.squareup.okhttp3:logging-interceptor:4.5.0")
     implementation deps.timber
 
     kapt deps.dagger.android_support_compiler
