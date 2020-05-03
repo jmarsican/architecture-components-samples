@@ -33,6 +33,7 @@ import com.android.example.github.R
 import com.android.example.github.api.MockServer
 import com.android.example.github.api.RepoSearchResponse
 import com.android.example.github.di.OkHttpProvider
+import com.android.example.github.util.ClearDatabaseRule
 import com.android.example.github.util.RecyclerViewMatcher
 import com.android.example.github.util.TaskExecutorWithIdlingResourceRule
 import com.android.example.github.vo.User
@@ -110,6 +111,9 @@ class SearchFragmentTest {
 
     @Test
     fun clickInSearchResults_ShowsErrorScreen() {
+        ClearDatabaseRule()
+                .excludeTablesMatching("android_metadata|room_master_table")
+                .clearDatabases()
         MockServer.enqueueErrorResponse()
 
         onView(withId(R.id.input))
