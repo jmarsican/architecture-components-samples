@@ -10,6 +10,9 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.openqa.selenium.remote.DesiredCapabilities;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+
 import static com.javiermarsicano.githubsample.TestResources.apiDemosApk;
 
 public abstract class BaseAndroidTest {
@@ -22,8 +25,8 @@ public abstract class BaseAndroidTest {
      * initialization.
      */
     @BeforeClass
-    public static void beforeClass() {
- //        service = AppiumDriverLocalService.buildDefaultService();
+    public static void beforeClass() throws MalformedURLException {
+//        service = AppiumDriverLocalService.buildDefaultService();
 //        service.start();
 //
 //        if (service == null || !service.isRunning()) {
@@ -52,3 +55,4 @@ public abstract class BaseAndroidTest {
         }
     }
 }
+
