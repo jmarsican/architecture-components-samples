@@ -37,7 +37,7 @@ public abstract class BaseAndroidTest {
         DesiredCapabilities capabilities = new DesiredCapabilities();
         capabilities.setCapability(MobileCapabilityType.PLATFORM_NAME, MobilePlatform.ANDROID);
         capabilities.setCapability(MobileCapabilityType.DEVICE_NAME, "Android Emulator");
-        capabilities.setCapability("uiautomator2ServerInstallTimeout", 30000);
+        capabilities.setCapability("uiautomator2ServerInstallTimeout", 60000);
 
         capabilities.setCapability(MobileCapabilityType.APP, apiDemosApk().toAbsolutePath().toString());
         capabilities.setCapability("allowTestPackages", true);
