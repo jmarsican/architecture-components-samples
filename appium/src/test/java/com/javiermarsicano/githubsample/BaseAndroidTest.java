@@ -23,20 +23,20 @@ public abstract class BaseAndroidTest {
      */
     @BeforeClass
     public static void beforeClass() {
-        service = AppiumDriverLocalService.buildDefaultService();
-        service.start();
-
-        if (service == null || !service.isRunning()) {
-            throw new AppiumServerHasNotBeenStartedLocallyException(
-                    "An appium server node is not started!");
-        }
+ //        service = AppiumDriverLocalService.buildDefaultService();
+//        service.start();
+//
+//        if (service == null || !service.isRunning()) {
+//            throw new AppiumServerHasNotBeenStartedLocallyException(
+//                    "An appium server node is not started!");
+//        }
 
         DesiredCapabilities capabilities = new DesiredCapabilities();
         capabilities.setCapability(MobileCapabilityType.PLATFORM_NAME, MobilePlatform.ANDROID);
         capabilities.setCapability(MobileCapabilityType.DEVICE_NAME, "Android Emulator");
         capabilities.setCapability(MobileCapabilityType.APP, apiDemosApk().toAbsolutePath().toString());
         capabilities.setCapability("allowTestPackages", true);
-        driver = new AppiumDriver<>(service.getUrl(), capabilities);
+        driver = new AppiumDriver<>(new URL("http://localhost:4723/wd/hub"), capabilities);
     }
 
     /**
