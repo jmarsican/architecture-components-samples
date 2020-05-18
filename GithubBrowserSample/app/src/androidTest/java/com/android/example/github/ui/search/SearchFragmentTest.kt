@@ -16,34 +16,23 @@
 
 package com.android.example.github.ui.search
 
-import android.view.KeyEvent
-import android.view.View
-import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ActivityScenario
-import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.IdlingRegistry
 import androidx.test.espresso.IdlingResource
-import androidx.test.espresso.action.ViewActions.*
-import androidx.test.espresso.assertion.ViewAssertions.matches
-import androidx.test.espresso.contrib.RecyclerViewActions
-import androidx.test.espresso.matcher.ViewMatchers.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.example.github.MainActivity
-import com.android.example.github.R
 import com.android.example.github.api.MockServer
 import com.android.example.github.api.RepoSearchResponse
 import com.android.example.github.di.OkHttpProvider
+import com.android.example.github.ui.search.robots.SearchRepoRobot
 import com.android.example.github.util.ClearDatabaseRule
-import com.android.example.github.util.RecyclerViewMatcher
 import com.android.example.github.util.TaskExecutorWithIdlingResourceRule
 import com.android.example.github.vo.User
-import com.google.android.material.textfield.TextInputLayout
 import com.jakewharton.espresso.OkHttp3IdlingResource
-import org.hamcrest.CoreMatchers.not
-import org.hamcrest.Description
-import org.hamcrest.Matcher
-import org.hamcrest.TypeSafeMatcher
-import org.junit.*
+import org.junit.After
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
 import org.junit.runner.RunWith
 
 
@@ -72,14 +61,15 @@ class SearchFragmentTest {
 
     @Test
     fun firstScreenShowsSearchOption() {
-        onView(withId(R.id.textInputLayout3))
-                .check(matches(isDisplayed()))
-                .check(matches(hasTextInputLayoutHintText("search repositories")))
+        SearchRepoRobot()
+            .checkTextInputWithHint("search repositories")
     }
 
     @Test
     fun clickInSearchResults_ShowsCorrectRepositoryScreen() {
         //GIVEN
+        val searchRepoRobot = SearchRepoRobot()
+
         MockServer.enqueueJsonResponse("search")
 
         val repoPosition = 14
@@ -87,56 +77,42 @@ class SearchFragmentTest {
         val repo = repositories!!.items[repoPosition]
 
         //WHEN
-        onView(withId(R.id.input))
-                .perform(
-                        typeText("foo"),
-                        pressKey(KeyEvent.KEYCODE_ENTER)
-                )
-
-        onView(withId(R.id.repo_list))
-                .check(matches(isDisplayed()))
-
-        val scrollToListItem = RecyclerViewActions.scrollToPosition<RecyclerView.ViewHolder>(repoPosition)
-        val clickOnListItem = RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(repoPosition, click())
-        onView(withId(R.id.repo_list))
-                .perform(scrollToListItem)
-                .perform(clickOnListItem)
+        searchRepoRobot.search("foo")
+            .checkResultsDisplayed()
+            .clickOnListItemAtPosition(repoPosition)
 
         //THEN
-        onView(withId(R.id.name))
-                .check(matches(withText(repo.fullName)))
-        onView(withId(R.id.progress_bar))
-                .check(matches(not(isDisplayed())))
+            .checkRepoNameIs(repo.fullName)
+            .checkProgressBarNotDisplayed()
     }
 
     @Test
     fun clickInSearchResults_ShowsErrorScreen() {
+        //GIVEN
+        val searchRepoRobot = SearchRepoRobot()
+
         ClearDatabaseRule()
                 .excludeTablesMatching("android_metadata|room_master_table")
                 .clearDatabases()
+
         MockServer.enqueueErrorResponse()
 
-        onView(withId(R.id.input))
-                .perform(
-                        typeText("foo"),
-                        pressKey(KeyEvent.KEYCODE_ENTER)
-                )
+        //WHEN
+        searchRepoRobot.search("foo")
 
-        onView(withId(R.id.retry))
-                .check(matches(isDisplayed()))
-        onView(withId(R.id.error_msg))
-                .check(matches(isDisplayed()))
-                .check(matches(not(withText(""))))
+            //THEN
+            .checkRetryButton()
+            .checkErrorMessageDisplayed()
     }
 
    @Test
     fun clickInContributor_ShowsAllHisRepos() {
        //GIVEN
-       val user = getUserResponseDTO()!!
+       val searchRepoRobot = SearchRepoRobot()
 
+       val user = getUserResponseDTO()!!
        val repoPosition = 1
-       val repositories = getRepoSearchResponseDTO()
-       val repo = repositories!!.items[repoPosition]
+       val repo = getRepoSearchResponseDTO()!!.items[repoPosition]
 
        val responses = MockServer.ConditionalResponseComposite(
                "/users/${repo.owner.login}/repos","repos-yigit",
@@ -150,28 +126,14 @@ class SearchFragmentTest {
        )
        MockServer.enqueueConditionalResponses(responses)
 
-        //WHEN
-        onView(withId(R.id.input))
-                .perform(
-                        typeText("foo"),
-                        pressKey(KeyEvent.KEYCODE_ENTER)
-                )
-
-        onView(RecyclerViewMatcher(R.id.repo_list).atPosition(repoPosition))
-                .perform(click())
-
-       val clickOnListItem = RecyclerViewActions.actionOnItem<RecyclerView.ViewHolder>(
-               hasDescendant(withText(repo.owner.login)),
-               click()
-       )
-       onView(withId(R.id.contributor_list))
-                .perform(clickOnListItem)
+       //WHEN
+       searchRepoRobot.search("foo")
+           .clickOnListItemAtPosition_BasicAdapter(repoPosition)
+           .clickOnContributor(repo.owner.login)
 
        //THEN
-        onView(withContentDescription("user name"))
-                .check(matches(withText(user.name)))
-        onView(withId(R.id.progress_bar))
-                .check(matches(not(isDisplayed())))
+           .checkUserNameIs(user.name)
+           .checkProgressBarNotDisplayed()
     }
 
     private fun getRepoSearchResponseDTO() = MockServer.getObjectFromJsonFile(
@@ -181,18 +143,4 @@ class SearchFragmentTest {
     private fun getUserResponseDTO() = MockServer.getObjectFromJsonFile(
                 "user-yigit",
                 User::class.java)
-
-    private fun hasTextInputLayoutHintText(expected: String): Matcher<View> = object : TypeSafeMatcher<View>() {
-
-        override fun describeTo(description: Description?) {
-            description?.appendText("TextView or TextInputLayout with hint '$expected'")
-        }
-
-        override fun matchesSafely(item: View?): Boolean {
-            if (item !is TextInputLayout) return false
-            val error = item.hint ?: return false
-            val hint = error.toString()
-            return expected == hint
-        }
-    }
 }
