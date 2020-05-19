@@ -1,6 +1,6 @@
 package com.javiermarsicano.githubsample
 
-import org.mockserver.integration.ClientAndServer
+import org.mockserver.client.MockServerClient
 import org.mockserver.model.HttpRequest.request
 import org.mockserver.model.HttpResponse.response
 
@@ -14,7 +14,7 @@ enum class ServiceEndpoint(val path: String) {
 }
 
 object MockServer {
-    private var serviceMocker = ClientAndServer(MOCKSERVER_PORT)
+    private var serviceMocker = MockServerClient("localhost",MOCKSERVER_PORT)
 
     fun mockContributorsServiceReturnsSuccessful(response: String) {
         mockGetServiceReturnsBody(ServiceEndpoint.CONTRIBUTORS.path, response)
