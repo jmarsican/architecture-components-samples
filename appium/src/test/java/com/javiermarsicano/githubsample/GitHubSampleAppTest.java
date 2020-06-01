@@ -21,7 +21,7 @@ import static org.junit.Assert.*;
 
 public class GitHubSampleAppTest extends BaseAndroidTest {
 
-    private static final int TIMEOUT_SECONDS = 4;
+    private static final int TIMEOUT_SECONDS = 8;
     private static final String SELECTOR_BY_TEXT = "new UiScrollable(new UiSelector()).scrollIntoView(" +
             "new UiSelector().text(\"%s\"));";
 
@@ -41,6 +41,7 @@ public class GitHubSampleAppTest extends BaseAndroidTest {
 
         Activity activity = new Activity(APP_ID, ".MainActivity");
         startsActivity.startActivity(activity);
+        driver.manage().timeouts().implicitlyWait(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
     @After
@@ -68,7 +69,6 @@ public class GitHubSampleAppTest extends BaseAndroidTest {
         searchInput.replaceValue("timber");
         driver.getKeyboard().sendKeys(Keys.ENTER);
 
-        driver.manage().timeouts().implicitlyWait(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         MobileElement secondElement = driver.findElementById(APP_ID + ":id/repo_list")
                 .findElementsByClassName("android.widget.FrameLayout")
                 .get(1)
@@ -91,7 +91,6 @@ public class GitHubSampleAppTest extends BaseAndroidTest {
         searchInput.replaceValue("timber");
         driver.getKeyboard().sendKeys(Keys.ENTER);
 
-        driver.manage().timeouts().implicitlyWait(TIMEOUT_SECONDS, TimeUnit.SECONDS);//TODO wait for element
         assertTrue(driver.findElement(By.id(APP_ID + ":id/retry"))
                 .isDisplayed());
         AndroidElement errorTextView = driver.findElement(By.id(APP_ID + ":id/error_msg"));
@@ -114,7 +113,6 @@ public class GitHubSampleAppTest extends BaseAndroidTest {
         searchInput.replaceValue("timber"); //type text
         driver.getKeyboard().sendKeys(Keys.ENTER); //press search key
 
-        driver.manage().timeouts().implicitlyWait(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         driver.findElementById(APP_ID + ":id/repo_list")
                 .findElementsByClassName("android.widget.FrameLayout")
                 .get(1)
