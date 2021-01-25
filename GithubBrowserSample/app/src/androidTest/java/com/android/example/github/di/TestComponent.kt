@@ -14,25 +14,30 @@
  * limitations under the License.
  */
 
-package com.android.example.github.util
+package com.android.example.github.di
 
 import android.app.Application
-import android.content.Context
-import android.os.Bundle
-import android.os.StrictMode
-import androidx.test.runner.AndroidJUnitRunner
-
 import com.android.example.github.TestApp
+import dagger.BindsInstance
+import dagger.Component
+import dagger.android.AndroidInjectionModule
+import javax.inject.Singleton
 
-/**
- * Custom runner to disable dependency injection.
- */
-class GithubTestRunner : AndroidJUnitRunner() {
-    override fun newApplication(cl: ClassLoader, className: String, context: Context): Application {
-        return super.newApplication(cl, TestApp::class.java.name, context)
+@Singleton
+@Component(
+    modules = [
+        AndroidInjectionModule::class,
+        TestModule::class,
+        MainActivityModule::class]
+)
+interface TestComponent {
+    @Component.Builder
+    interface Builder {
+        @BindsInstance
+        fun application(application: Application): Builder
+
+        fun build(): TestComponent
     }
-    override fun onCreate(arguments: Bundle) {
-        StrictMode.setThreadPolicy(StrictMode.ThreadPolicy.Builder().permitAll().build())
-        super.onCreate(arguments)
-    }
+
+    fun inject(githubApp: TestApp)
 }

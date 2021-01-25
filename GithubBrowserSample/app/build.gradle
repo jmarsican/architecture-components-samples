@@ -36,6 +36,15 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "com.android.example.github.util.GithubTestRunner"
+
+        // The following argument makes the Android Test Orchestrator run its
+        // "pm clear" command after each test invocation. This command ensures
+        // that the app's state is completely cleared between tests.
+        testInstrumentationRunnerArguments clearPackageData: 'true'
+    }
+
+    testOptions {
+        execution 'ANDROIDX_TEST_ORCHESTRATOR'
     }
     buildTypes {
         debug {
@@ -116,10 +125,15 @@ dependencies {
 
     androidTestImplementation deps.espresso.core
     androidTestImplementation deps.espresso.contrib
+    androidTestUtil 'androidx.test:orchestrator:1.2.0'
 
+    androidTestImplementation 'com.jakewharton.espresso:okhttp3-idling-resource:1.0.0'
     androidTestImplementation deps.arch_core.testing
     androidTestImplementation deps.mockito.core
     androidTestImplementation deps.mockito.android
+    androidTestImplementation deps.mock_web_server
+    kaptAndroidTest deps.dagger.android_support_compiler
+    kaptAndroidTest deps.dagger.compiler
 }
 
 task fullCoverageReport(type: JacocoReport) {

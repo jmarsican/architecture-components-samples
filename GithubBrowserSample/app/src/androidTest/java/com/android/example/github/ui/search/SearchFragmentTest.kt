@@ -16,168 +16,131 @@
 
 package com.android.example.github.ui.search
 
-import android.view.KeyEvent
-import androidx.databinding.DataBindingComponent
-import androidx.fragment.app.testing.launchFragmentInContainer
-import androidx.lifecycle.MutableLiveData
-import androidx.navigation.NavController
-import androidx.navigation.Navigation
-import androidx.recyclerview.widget.RecyclerView
-import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.action.ViewActions.click
-import androidx.test.espresso.action.ViewActions.pressKey
-import androidx.test.espresso.action.ViewActions.typeText
-import androidx.test.espresso.assertion.ViewAssertions.matches
-import androidx.test.espresso.contrib.RecyclerViewActions
-import androidx.test.espresso.matcher.ViewMatchers
-import androidx.test.espresso.matcher.ViewMatchers.hasDescendant
-import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
-import androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility
-import androidx.test.espresso.matcher.ViewMatchers.withId
-import androidx.test.espresso.matcher.ViewMatchers.withText
+import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.IdlingRegistry
+import androidx.test.espresso.IdlingResource
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.android.example.github.R
-import com.android.example.github.binding.FragmentBindingAdapters
-import com.android.example.github.util.CountingAppExecutorsRule
-import com.android.example.github.util.DataBindingIdlingResourceRule
-import com.android.example.github.util.RecyclerViewMatcher
+import com.android.example.github.MainActivity
+import com.android.example.github.api.MockServer
+import com.android.example.github.api.RepoSearchResponse
+import com.android.example.github.di.OkHttpProvider
+import com.android.example.github.ui.search.robots.SearchRepoRobot
+import com.android.example.github.util.ClearDatabaseRule
 import com.android.example.github.util.TaskExecutorWithIdlingResourceRule
-import com.android.example.github.util.TestUtil
-import com.android.example.github.util.ViewModelUtil
-import com.android.example.github.util.disableProgressBarAnimations
-import com.android.example.github.util.mock
-import com.android.example.github.vo.Repo
-import com.android.example.github.vo.Resource
-import org.hamcrest.CoreMatchers.not
+import com.android.example.github.vo.User
+import com.jakewharton.espresso.OkHttp3IdlingResource
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mockito.`when`
-import org.mockito.Mockito.doNothing
-import org.mockito.Mockito.doReturn
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.verify
+
 
 @RunWith(AndroidJUnit4::class)
 class SearchFragmentTest {
+
     @Rule
     @JvmField
     val executorRule = TaskExecutorWithIdlingResourceRule()
-    @Rule
-    @JvmField
-    val countingAppExecutors = CountingAppExecutorsRule()
-    @Rule
-    @JvmField
-    val dataBindingIdlingResourceRule = DataBindingIdlingResourceRule()
 
-    private lateinit var mockBindingAdapter: FragmentBindingAdapters
-    private lateinit var viewModel: SearchViewModel
-    private val navController = mock<NavController>()
-    private val results = MutableLiveData<Resource<List<Repo>>>()
-    private val loadMoreStatus = MutableLiveData<SearchViewModel.LoadMoreState>()
+    private val resource : IdlingResource =
+            OkHttp3IdlingResource.create("okhttp", OkHttpProvider.instance)
 
     @Before
     fun init() {
-        viewModel = mock(SearchViewModel::class.java)
-        doReturn(loadMoreStatus).`when`(viewModel).loadMoreStatus
-        `when`(viewModel.results).thenReturn(results)
+        MockServer.init()
+        IdlingRegistry.getInstance().register(resource)
+        ActivityScenario.launch(MainActivity::class.java)
+    }
 
-        mockBindingAdapter = mock(FragmentBindingAdapters::class.java)
-
-        val scenario = launchFragmentInContainer(
-                themeResId = R.style.AppTheme) {
-            SearchFragment().apply {
-                appExecutors = countingAppExecutors.appExecutors
-                viewModelFactory = ViewModelUtil.createFor(viewModel)
-                dataBindingComponent = object : DataBindingComponent {
-                    override fun getFragmentBindingAdapters(): FragmentBindingAdapters {
-                        return mockBindingAdapter
-                    }
-                }
-            }
-        }
-        dataBindingIdlingResourceRule.monitorFragment(scenario)
-        scenario.onFragment { fragment ->
-            Navigation.setViewNavController(fragment.requireView(), navController)
-            fragment.disableProgressBarAnimations()
-        }
+    @After
+    fun tearDown() {
+        MockServer.reset()
+        IdlingRegistry.getInstance().unregister(resource)
     }
 
     @Test
-    fun search() {
-        onView(withId(R.id.progress_bar)).check(matches(not(isDisplayed())))
-        onView(withId(R.id.input)).perform(
-            typeText("foo"),
-            pressKey(KeyEvent.KEYCODE_ENTER)
-        )
-        verify(viewModel).setQuery("foo")
-        results.postValue(Resource.loading(null))
-        onView(withId(R.id.progress_bar)).check(matches(isDisplayed()))
+    fun firstScreenShowsSearchOption() {
+        SearchRepoRobot()
+            .checkTextInputWithHint("search repositories")
     }
 
     @Test
-    fun loadResults() {
-        val repo = TestUtil.createRepo("foo", "bar", "desc")
-        results.postValue(Resource.success(arrayListOf(repo)))
-        onView(listMatcher().atPosition(0)).check(matches(hasDescendant(withText("foo/bar"))))
-        onView(withId(R.id.progress_bar)).check(matches(not(isDisplayed())))
+    fun clickInSearchResults_ShowsCorrectRepositoryScreen() {
+        //GIVEN
+        val searchRepoRobot = SearchRepoRobot()
+
+        MockServer.enqueueJsonResponse("search")
+
+        val repoPosition = 14
+        val repositories = getRepoSearchResponseDTO()
+        val repo = repositories!!.items[repoPosition]
+
+        //WHEN
+        searchRepoRobot.search("foo")
+            .checkResultsDisplayed()
+            .clickOnListItemAtPosition(repoPosition)
+
+        //THEN
+            .checkRepoNameIs(repo.fullName)
+            .checkProgressBarNotDisplayed()
     }
 
     @Test
-    fun dataWithLoading() {
-        val repo = TestUtil.createRepo("foo", "bar", "desc")
-        results.postValue(Resource.loading(arrayListOf(repo)))
-        onView(listMatcher().atPosition(0)).check(matches(hasDescendant(withText("foo/bar"))))
-        onView(withId(R.id.progress_bar)).check(matches(not(isDisplayed())))
+    fun clickInSearchResults_ShowsErrorScreen() {
+        //GIVEN
+        val searchRepoRobot = SearchRepoRobot()
+
+        ClearDatabaseRule()
+                .excludeTablesMatching("android_metadata|room_master_table")
+                .clearDatabases()
+
+        MockServer.enqueueErrorResponse()
+
+        //WHEN
+        searchRepoRobot.search("foo")
+
+            //THEN
+            .checkRetryButton()
+            .checkErrorMessageDisplayed()
     }
 
-    @Test
-    fun error() {
-        results.postValue(Resource.error("failed to load", null))
-        onView(withId(R.id.error_msg)).check(matches(isDisplayed()))
+   @Test
+    fun clickInContributor_ShowsAllHisRepos() {
+       //GIVEN
+       val searchRepoRobot = SearchRepoRobot()
+
+       val user = getUserResponseDTO()!!
+       val repoPosition = 1
+       val repo = getRepoSearchResponseDTO()!!.items[repoPosition]
+
+       val responses = MockServer.ConditionalResponseComposite(
+               "/users/${repo.owner.login}/repos","repos-yigit",
+               MockServer.ConditionalResponseComposite(
+                       "/users/${repo.owner.login}", "user-yigit",
+                       MockServer.ConditionalResponseComposite(
+                               "/repos/${repo.owner.login}/${repo.name}/contributors", "contributors",
+                               MockServer.ConditionalResponseComposite("/search/repositories", "search")
+                       )
+               )
+       )
+       MockServer.enqueueConditionalResponses(responses)
+
+       //WHEN
+       searchRepoRobot.search("foo")
+           .clickOnListItemAtPosition_BasicAdapter(repoPosition)
+           .clickOnContributor(repo.owner.login)
+
+       //THEN
+           .checkUserNameIs(user.name)
+           .checkProgressBarNotDisplayed()
     }
 
-    @Test
-    fun loadMore() {
-        val repos = TestUtil.createRepos(50, "foo", "barr", "desc")
-        results.postValue(Resource.success(repos))
-        val action = RecyclerViewActions.scrollToPosition<RecyclerView.ViewHolder>(49)
-        onView(withId(R.id.repo_list)).perform(action)
-        onView(listMatcher().atPosition(49)).check(matches(isDisplayed()))
-        verify(viewModel).loadNextPage()
-    }
+    private fun getRepoSearchResponseDTO() = MockServer.getObjectFromJsonFile(
+                "search",
+                RepoSearchResponse::class.java)
 
-    @Test
-    fun navigateToRepo() {
-        doNothing().`when`<SearchViewModel>(viewModel).loadNextPage()
-        val repo = TestUtil.createRepo("foo", "bar", "desc")
-        results.postValue(Resource.success(arrayListOf(repo)))
-        onView(withText("desc")).perform(click())
-        verify(navController).navigate(
-                SearchFragmentDirections.showRepo("foo", "bar")
-        )
-    }
-
-    @Test
-    fun loadMoreProgress() {
-        loadMoreStatus.postValue(SearchViewModel.LoadMoreState(true, null))
-        onView(withId(R.id.load_more_bar)).check(matches(isDisplayed()))
-        loadMoreStatus.postValue(SearchViewModel.LoadMoreState(false, null))
-        onView(withId(R.id.load_more_bar)).check(matches(not(isDisplayed())))
-    }
-
-    @Test
-    fun loadMoreProgressError() {
-        loadMoreStatus.postValue(SearchViewModel.LoadMoreState(true, "QQ"))
-        onView(withText("QQ")).check(
-            matches(
-                withEffectiveVisibility(ViewMatchers.Visibility.VISIBLE)
-            )
-        )
-    }
-
-    private fun listMatcher(): RecyclerViewMatcher {
-        return RecyclerViewMatcher(R.id.repo_list)
-    }
+    private fun getUserResponseDTO() = MockServer.getObjectFromJsonFile(
+                "user-yigit",
+                User::class.java)
 }
